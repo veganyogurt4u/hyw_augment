@@ -5,9 +5,9 @@ Loads English-language definitions and Armenian synonyms from the Calfa
 lexical-databases repository (https://github.com/calfa-co/lexical-databases).
 
 Data is licensed CC BY-NC 4.0.  Cite:
-  Chaumont A. & Kindt B. (2020). A Multilingual Lemmatized Lexicon of
-  Classical Armenian. LREC 2020.
-  Kindt B. (2020). Lemmatised Dictionaries of Classical Armenian. HAL.
+  Vidal-Gorene C. & Decours-Perez A. (2020). Languages Resources for Poorly
+  Endowed Languages: The Case Study of Classical Armenian. LREC 2020.
+  https://aclanthology.org/2020.lrec-1.385
 
 Usage:
     from hyw_augment.calfa import CaLFALexicon
