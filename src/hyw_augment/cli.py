@@ -87,13 +87,22 @@ def main():
         "--define",
         help="Look up a word's definition",
     )
+    parser.add_argument(
+        "--calfa",
+        metavar="DIR",
+        help="Path to calfa lexical-databases directory (overrides config)",
+    )
+    parser.add_argument(
+        "--define-en",
+        help="Look up a word's English definition (Calfa lexicon)",
+    )
     args = parser.parse_args()
 
     # ── Build engine ─────────────────────────────────────────────────────
 
     from hyw_augment.engine import MorphEngine
 
-    has_explicit_flags = args.nayiri or args.apertium or args.conllu or args.hyspell
+    has_explicit_flags = args.nayiri or args.apertium or args.conllu or args.hyspell or args.calfa
 
     if has_explicit_flags:
         # Explicit flags: build engine manually (flags override config)
@@ -111,6 +120,8 @@ def main():
             glossary_path = hp / "SmallArmDic.txt"
             if glossary_path.exists():
                 engine.add_glossary(glossary_path)
+        if args.calfa:
+            engine.add_calfa(args.calfa)
     else:
         # Use config file
         config_path = Path(args.config) if args.config else _find_default_config()
@@ -257,6 +268,21 @@ def main():
                     print("Glossary not available (HySpell not configured).")
                 else:
                     print(f"'{args.define}' not found in glossary.")
+            print()
+
+        # ── Define (English) ────────────────────────────────────────────
+
+        if args.define_en:
+            entries = engine.lookup_calfa(args.define_en)
+            if entries:
+                print(f"English definition of '{args.define_en}':")
+                for e in entries:
+                    print(f"  [{e.pos}] {e.definition_en}")
+            else:
+                if engine.calfa is None:
+                    print("Calfa lexicon not available (--calfa not configured).")
+                else:
+                    print(f"'{args.define_en}' not found in Calfa lexicon.")
             print()
 
 

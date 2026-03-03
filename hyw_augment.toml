@@ -25,3 +25,6 @@ paths = [
 
 [hyspell]
 dir = "data/Dictionaries"
+
+[calfa]
+dir = "/home/van/ml-work/arm_data/lexical-databases"

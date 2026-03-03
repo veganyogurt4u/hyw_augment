@@ -83,6 +83,7 @@ class MorphEngine:
         self.spellchecker = None  # SpellChecker | None
         self.orthography = None   # OrthographyConverter | None
         self.glossary = None      # Glossary | None
+        self.calfa = None         # CaLFALexicon | None
 
     # ── Construction helpers ─────────────────────────────────────────────
 
@@ -123,6 +124,12 @@ class MorphEngine:
         from hyw_augment.glossary import Glossary
 
         self.glossary = Glossary.from_file(path)
+
+    def add_calfa(self, calfa_dir: str | Path) -> None:
+        """Add the Calfa English-definitions lexicon."""
+        from hyw_augment.calfa import CaLFALexicon
+
+        self.calfa = CaLFALexicon.from_dir(calfa_dir)
 
     def load_treebank(self, *paths: str | Path) -> None:
         """Load UD treebank files."""
@@ -187,6 +194,15 @@ class MorphEngine:
             glossary_path = hp / "SmallArmDic.txt"
             if glossary_path.exists():
                 engine.add_glossary(glossary_path)
+
+        # Calfa English-definitions lexicon
+        calfa_cfg = cfg.get("calfa", {})
+        calfa_dir = calfa_cfg.get("dir")
+        if calfa_dir:
+            cp = Path(calfa_dir)
+            if not cp.is_absolute():
+                cp = base_dir / cp
+            engine.add_calfa(cp)
 
         return engine
 
@@ -297,6 +313,21 @@ class MorphEngine:
             return self.glossary.lookup(word)
         return None
 
+    def lookup_calfa(self, word: str):
+        """Look up a word's English definition in the Calfa lexicon.
+
+        Returns list of CaLFAEntry or None.
+        """
+        if self.calfa is not None:
+            return self.calfa.lookup(word)
+        return None
+
+    def synonyms_calfa(self, word: str) -> list[str]:
+        """Return Armenian synonyms from the Calfa synonyms lexicon."""
+        if self.calfa is not None:
+            return self.calfa.synonyms_for(word)
+        return []
+
     # ── Introspection ────────────────────────────────────────────────────
 
     def summary(self) -> str:
@@ -320,6 +351,10 @@ class MorphEngine:
         if self.glossary:
             lines.append(f"  [glossary]")
             for sub_line in self.glossary.summary().split("\n"):
+                lines.append(f"    {sub_line}")
+        if self.calfa:
+            lines.append(f"  [calfa]")
+            for sub_line in self.calfa.summary().split("\n"):
                 lines.append(f"    {sub_line}")
         return "\n".join(lines)
 

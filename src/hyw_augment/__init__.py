@@ -8,6 +8,7 @@ from hyw_augment.engine import MorphEngine, AnalysisResult
 from hyw_augment.spelling import SpellChecker
 from hyw_augment.orthography import OrthographyConverter
 from hyw_augment.glossary import Glossary, GlossaryEntry
+from hyw_augment.calfa import CaLFALexicon, CaLFAEntry
 
 __all__ = [
     "Treebank", "Sentence", "Token",
@@ -16,5 +17,6 @@ __all__ = [
     "MorphEngine", "AnalysisResult",
     "SpellChecker", "OrthographyConverter",
     "Glossary", "GlossaryEntry",
+    "CaLFALexicon", "CaLFAEntry",
     "check_coverage",
 ]
