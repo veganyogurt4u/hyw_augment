@@ -62,6 +62,37 @@ Probably this will become an MCP tool.
 * Key person: Haro Mherian, Ph.D.
 * Integrated for spell checking, orthography conversion, and glossary lookup (configured in `hyw_augment.toml`)
 
+### Calfa Lexical-Databases
+
+* Source: https://github.com/calfa-co/lexical-databases / https://dictionary.calfa.fr/
+* Classical and Modern Armenian dictionary with English (and French) definitions: 65,430 entries, 155,000 examples
+* Compiled from multiple reference dictionaries; main sources: Awetikʻean/Siwrmēlean/Awgerean *Nor Bargirk* (Venice, 1836–37), Bedrossian *New Dictionary Armenian-English* (Venice, 1875), Calfa *Dictionnaire arménien-français* (Paris, 1861); etymological data from Ačaṙean; synonyms from Łazarean
+* ~41K headwords with English definitions (up to 6 POS/definition pairs per entry); ~31K synonym sets in Armenian
+* License: **CC BY-NC 4.0** (non-commercial use only)
+* Cite (pick one or both, I've chosen both):
+  ```bibtex
+  @inproceedings{vidal-gorene-decours-perez-2020-languages,
+      title = "Languages Resources for Poorly Endowed Languages: The Case Study of Classical Armenian",
+      author = "Vidal-Gorène, Chahan and Decours-Perez, Aliénor",
+      booktitle = "Proceedings of the Twelfth Language Resources and Evaluation Conference",
+      year = "2020",
+      address = "Marseille, France",
+      url = "https://aclanthology.org/2020.lrec-1.385",
+      pages = "3145--3152",
+  }
+
+  @article{DigitalizationandEnrichmentoftheWorkinProgressforArmenianLexicography,
+      author = "Chahan Vidal-Gorène and Aliénor Decours-Perez and Baptiste Queuche and Agnès Ouzounian and Thomas Riccioli",
+      title = "Digitalization and Enrichment of the Նոր Բառգիրք Հայկազեան Լեզուի: Work in Progress for Armenian Lexicography",
+      journal = "Journal of the Society for Armenian Studies",
+      year = "2021",
+      volume = "27", number = "2",
+      doi = "10.1163/26670038-12342714",
+      pages = "224--244",
+  }
+  ```
+* Integrated for English-language definition lookup (configured in `hyw_augment.toml`)
+
 ## Architecture
 
 ```
@@ -76,6 +107,7 @@ src/hyw_augment/
 ├── spelling.py               # Hunspell spell checker wrapper (persistent hunspell pipe)
 ├── orthography.py            # Reformed ↔ Classical orthography conversion
 ├── glossary.py               # Armenian explanatory dictionary (SmallArmDic)
+├── calfa.py                  # Calfa lexical-databases (English definitions + synonyms)
 ├── derivation.py             # Derivational morphology (prefix/suffix stripping) [WIP]
 ├── latin_hyw_to_hy.py        # Beginning of system to accept latin letter input [WIP]
 ├── extract_words_from_UD.py  # extracts unmatched words from UD in Nayiri format (potentially now unnecessary, or just duplicative)
@@ -125,6 +157,13 @@ hyw_augment.toml              # Default config (paths to data, backends)
 - `glossary.lookup("word")` → list of GlossaryEntry with `.pos`, `.definition`, `.is_transitive`
 - POS tags normalized from Armenian abbreviations (գ.→NOUN, նրգ.→VERB_TR, etc.)
 
+### calfa.py
+- `CaLFALexicon.from_dir(path)` — loads `definitions/en-definitions01.tsv` and `synonyms/synonyms01.tsv`
+- `lex.lookup("word")` → list of CaLFAEntry with `.pos`, `.pos_raw`, `.complement`, `.definition_en`
+- `lex.synonyms_for("word")` → list of Armenian synonym strings
+- POS abbreviations normalized from Latin: `s.`→NOUN, `adj.`→ADJECTIVE, `v.`→VERB, `adv.`→ADVERB, `int.`→INTERJECTION, etc.
+- Compound POS strings (e.g. `s. adv.`) use the first recognized token as primary POS
+
 ### engine.py
 - `MorphEngine.from_config("hyw_augment.toml")` — loads everything from config
 - `engine.analyze("form")` → list of AnalysisResult (first backend that hits)
@@ -134,7 +173,9 @@ hyw_augment.toml              # Default config (paths to data, backends)
 - `engine.suggest("form")` → spelling suggestions via Hunspell
 - `engine.convert_reformed("text")` → Reformed-to-Classical orthography conversion
 - `engine.detect_reformed("text")` → find Reformed-orthography words
-- `engine.lookup_definition("word")` → glossary entries with POS + definitions
+- `engine.lookup_definition("word")` → glossary entries with POS + Armenian definitions (HySpell SmallArmDic)
+- `engine.lookup_calfa("word")` → CaLFAEntry list with English definitions, or None
+- `engine.synonyms_calfa("word")` → Armenian synonyms list from Calfa (empty list if not found)
 - `AnalysisResult` wraps any backend's analysis with `.source` tag + delegates `.lemma`, `.pos`, etc.
 
 ### coverage.py
@@ -159,6 +200,9 @@ paths = ["data/hyw_armtdp-ud-train.conllu", "data/hyw_armtdp-ud-dev.conllu", "da
 
 [hyspell]
 dir = "/path/to/HySpell_3.0.1/Dictionaries"
+
+[calfa]
+dir = "/path/to/lexical-databases"
 ```
 
 With a config file present, the CLI loads everything automatically — no flags needed. All sections are optional.
@@ -180,8 +224,11 @@ Get spelling suggestions:
 Convert Reformed (Eastern) orthography to Classical (Western):
 `hyw-augment --convert "REFORMED_TEXT"`
 
-Look up a word's definition:
+Look up a word's Armenian definition (HySpell SmallArmDic):
 `hyw-augment --define "WORD"`
+
+Look up a word's English definition (Calfa):
+`hyw-augment --define-en "WORD"`
 
 Coverage check:
 `hyw-augment --coverage`
@@ -192,6 +239,7 @@ Coverage with mismatch export:
 Override config with explicit flags:
 `hyw-augment --nayiri data/*.json --apertium /path/to/apertium-hyw --analyze "WORD"`
 `hyw-augment --hyspell /path/to/Dictionaries --validate "WORD"`
+`hyw-augment --calfa /path/to/lexical-databases --define-en "WORD"`
 
 Extract mismatched words between UD and Nayiri (first pass for building function words list):
 ```
@@ -221,6 +269,13 @@ For expanded morphological coverage, install the Apertium Western Armenian trans
 3. Set `dir` in `hyw_augment.toml` under `[hyspell]` to the `Dictionaries/` subdirectory
 
 The spell checker requires the `hunspell` binary in PATH. The orthography converter and glossary are pure Python and work without it.
+
+#### Calfa lexical-databases (English definitions)
+
+1. Clone: https://github.com/calfa-co/lexical-databases
+2. Set `dir` in `hyw_augment.toml` under `[calfa]` to the repo root (the directory containing `definitions/` and `synonyms/`)
+
+Pure Python, no external tools needed. **License is CC BY-NC 4.0 (non-commercial use only)** — different from the other data sources. If you use this data, cite both papers listed in the Data Sources section above.
 
 ### Python
 
@@ -254,10 +309,20 @@ engine.convert_reformed("reformed text")  # "classical text"
 # Detect Reformed words in text
 engine.detect_reformed("mixed text")  # [("reformed_word", "classical_word"), ...]
 
-# Look up definitions
+# Look up Armenian definitions (HySpell SmallArmDic)
 entries = engine.lookup_definition("WORD")
 for e in entries:
     print(e.pos, e.definition)  # NOUN, Armenian definition text
+
+# Look up English definitions (Calfa)
+entries = engine.lookup_calfa("WORD")
+if entries:
+    for e in entries:
+        print(e.pos, e.definition_en)   # NOUN, English definition text
+        print(e.complement)             # inflection suffix hint, e.g. "ու"
+
+# Armenian synonyms (Calfa)
+synonyms = engine.synonyms_calfa("WORD")  # ["synonym1", "synonym2", ...]
 
 # Treebank exploration
 from hyw_augment import Treebank
