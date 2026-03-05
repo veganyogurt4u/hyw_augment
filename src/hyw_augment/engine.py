@@ -20,10 +20,13 @@ Usage:
 from __future__ import annotations
 
 import glob
+import logging
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -394,8 +397,6 @@ def _resolve_config_paths(raw_paths: list[str], base_dir: Path) -> list[Path]:
     passed through — this lets generated/optional files (e.g. function-words.json)
     be listed in the config without crashing on a fresh clone.
     """
-    import warnings
-
     result = []
     for p in raw_paths:
         full = base_dir / p if not Path(p).is_absolute() else Path(p)
@@ -405,8 +406,5 @@ def _resolve_config_paths(raw_paths: list[str], base_dir: Path) -> list[Path]:
         elif full.exists():
             result.append(full)
         else:
-            warnings.warn(
-                f"hyw_augment: config path not found, skipping: {full}",
-                stacklevel=4,
-            )
+            logger.warning("config path not found, skipping: %s", full)
     return result
