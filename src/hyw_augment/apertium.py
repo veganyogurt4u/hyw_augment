@@ -240,13 +240,24 @@ class ApertiumAnalyzer:
     def _query_one(self, form: str) -> list[str]:
         """Send a single form to the persistent process, read until blank line."""
         proc = self._get_morf_proc()
-        proc.stdin.write(form + "\n")
-        proc.stdin.flush()
+        try:
+            proc.stdin.write(form + "\n")
+            proc.stdin.flush()
+        except OSError:
+            # Process died before write (BrokenPipeError etc.); clear so next
+            # call to _get_morf_proc() will restart it.
+            self._morf_proc = None
+            return []
 
         lines = []
         while True:
             line = proc.stdout.readline()
-            if not line or not line.strip():
+            if not line:
+                # True EOF: process died mid-read.  Clear cached proc.
+                self._morf_proc = None
+                break
+            if not line.strip():
+                # Blank separator line: normal end of hfst-lookup output block.
                 break
             lines.append(line.rstrip("\n"))
         return lines
