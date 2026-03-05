@@ -19,8 +19,6 @@ __pycache__/
 *.db
 # (currently) Derived from script
 data/extracted-words.json
-# very stubby, skipping for now
-data/prefixes-and-suffixes.json
 
 # OS
 .DS_Store
@@ -28,6 +26,7 @@ Thumbs.db
 
 # Project files
 NOTES.md
+Next-Steps.md
 
 # Build
 build/
