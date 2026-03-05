@@ -335,6 +335,14 @@ tb.deprel_distribution()
 ### Test
 `pytest`
 
+### ruff
+
+for code quality
+
+`ruff check src/ tests/`
+auto-fix the easy stuff
+`ruff check --fix src/ tests/`
+
 
 ## Current questions
 
