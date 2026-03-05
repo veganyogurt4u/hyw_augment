@@ -24,7 +24,7 @@ def _find_default_config() -> Path | None:
     return None
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Western Armenian morphological toolkit"
     )
