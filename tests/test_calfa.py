@@ -1,8 +1,8 @@
 """Tests for the Calfa lexical-databases integration (calfa.py)."""
 
 import pytest
-from hyw_augment.calfa import CaLFALexicon, CaLFAEntry, _POS_MAP, _primary_pos
 
+from hyw_augment.calfa import _POS_MAP, CaLFAEntry, CaLFALexicon, _primary_pos
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

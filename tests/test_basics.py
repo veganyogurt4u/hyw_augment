@@ -1,9 +1,9 @@
 """Basic tests for the parsing modules."""
 
 from pathlib import Path
+
 from hyw_augment.conllu import Treebank, _parse_feats, _parse_misc
 from hyw_augment.nayiri import Lexicon
-
 
 # ── Unit tests for parsers ────────────────────────────────────────────────────
 

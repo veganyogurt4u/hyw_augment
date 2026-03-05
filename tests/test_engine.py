@@ -1,9 +1,8 @@
 """Tests for MorphEngine and AnalysisResult (engine.py)."""
 
-import pytest
 from unittest.mock import MagicMock
-from hyw_augment.engine import MorphEngine, AnalysisResult
 
+from hyw_augment.engine import AnalysisResult, MorphEngine
 
 # ── Helpers / mock backends ───────────────────────────────────────────────────
 

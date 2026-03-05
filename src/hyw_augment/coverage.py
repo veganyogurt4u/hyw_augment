@@ -23,13 +23,12 @@ Usage:
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass, field
 from collections import Counter
+from dataclasses import dataclass, field
 from pathlib import Path
 
-from hyw_augment.conllu import Treebank, Token
+from hyw_augment.conllu import Token, Treebank
 from hyw_augment.nayiri import Lexicon
-
 
 # POS tags we don't expect the lexicon to cover
 SKIP_POS = {"PUNCT", "NUM", "SYM", "X"}
@@ -79,7 +78,8 @@ class CoverageReport:
         if self.checked_tokens == 0:
             return "No tokens checked."
 
-        pct = lambda n, d: f"{100*n/d:.1f}%" if d > 0 else "N/A"
+        # percent formatting helper; note at end to avoid ruff complaining about named lambda
+        pct = lambda n, d: f"{100*n/d:.1f}%" if d > 0 else "N/A" # noqa: E731
 
         total_found = self.found_tokens + self.apertium_rescued
         still_missing = self.checked_tokens - total_found

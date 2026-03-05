@@ -252,7 +252,7 @@ def main() -> None:
                     for ref, cls in reformed:
                         print(f"  {ref} -> {cls}")
             else:
-                print(f"No Reformed-orthography words detected.")
+                print("No Reformed-orthography words detected.")
             print()
 
         # ── Define ──────────────────────────────────────────────────────

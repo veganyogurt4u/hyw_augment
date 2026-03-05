@@ -1,16 +1,17 @@
 """Tests for the CoNLL-U parser (conllu.py)."""
 
-import pytest
-from hyw_augment.conllu import (
-    Token,
-    Sentence,
-    Treebank,
-    _parse_feats,
-    _parse_misc,
-    _parse_conllu,
-)
 from pathlib import Path
 
+import pytest
+
+from hyw_augment.conllu import (
+    Sentence,
+    Token,
+    Treebank,
+    _parse_conllu,
+    _parse_feats,
+    _parse_misc,
+)
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

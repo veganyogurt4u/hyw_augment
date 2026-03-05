@@ -19,7 +19,6 @@ import shutil
 import subprocess
 from pathlib import Path
 
-
 # Hunspell pipe mode output patterns:
 #   *                         -> word is correct
 #   + root                    -> word is correct (root compound)

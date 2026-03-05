@@ -1,8 +1,8 @@
 """Tests for apertium.py — parsing logic only, no hfst-lookup binary needed."""
 
 import pytest
-from hyw_augment.apertium import ApertiumAnalyzer, ApertiumAnalysis
 
+from hyw_augment.apertium import ApertiumAnalysis, ApertiumAnalyzer
 
 # ── Fixture helper ────────────────────────────────────────────────────────────
 

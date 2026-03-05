@@ -1,9 +1,10 @@
 """Tests for the Nayiri lexicon parser (nayiri.py)."""
 
-import pytest
 from pathlib import Path
-from hyw_augment.nayiri import Lexicon, MorphAnalysis, Inflection
 
+import pytest
+
+from hyw_augment.nayiri import Lexicon, MorphAnalysis
 
 # ── In-memory fixture ─────────────────────────────────────────────────────────
 

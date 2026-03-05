@@ -22,7 +22,6 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-
 # ── Tag labels: Apertium tag → human-readable English ────────────────────
 
 _TAG_LABELS: dict[str, str] = {

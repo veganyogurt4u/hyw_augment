@@ -18,7 +18,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-
 # ── FlexMap rule parsing ────────────────────────────────────────────────────
 
 # Strip trailing digits (Hunspell flag references like +ա125 → +ա)

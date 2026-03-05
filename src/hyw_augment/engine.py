@@ -340,23 +340,23 @@ class MorphEngine:
             for sub_line in backend.summary().split("\n"):
                 lines.append(f"    {sub_line}")
         if self.treebank:
-            lines.append(f"  [treebank]")
+            lines.append("  [treebank]")
             for sub_line in self.treebank.summary().split("\n"):
                 lines.append(f"    {sub_line}")
         if self.spellchecker:
-            lines.append(f"  [spellcheck]")
+            lines.append("  [spellcheck]")
             for sub_line in self.spellchecker.summary().split("\n"):
                 lines.append(f"    {sub_line}")
         if self.orthography:
-            lines.append(f"  [orthography]")
+            lines.append("  [orthography]")
             for sub_line in self.orthography.summary().split("\n"):
                 lines.append(f"    {sub_line}")
         if self.glossary:
-            lines.append(f"  [glossary]")
+            lines.append("  [glossary]")
             for sub_line in self.glossary.summary().split("\n"):
                 lines.append(f"    {sub_line}")
         if self.calfa:
-            lines.append(f"  [calfa]")
+            lines.append("  [calfa]")
             for sub_line in self.calfa.summary().split("\n"):
                 lines.append(f"    {sub_line}")
         return "\n".join(lines)

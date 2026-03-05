@@ -26,7 +26,6 @@ import csv
 from dataclasses import dataclass
 from pathlib import Path
 
-
 # Latin POS abbreviations used in en-definitions01.tsv -> normalized English POS
 _POS_MAP: dict[str, str] = {
     "s.":    "NOUN",

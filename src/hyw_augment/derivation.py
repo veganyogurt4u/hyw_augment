@@ -11,3 +11,4 @@ class DerivationalAnalyzer:
     def decompose(self, form, lexicon):
         # try prefixes first, then suffixes, then both
         # return list[DerivationalAnalysis] or empty
+        ...

@@ -18,7 +18,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-
 # Armenian POS abbreviations -> normalized English POS labels
 _POS_MAP: dict[str, str] = {
     "\u0563.":       "NOUN",           # գ.

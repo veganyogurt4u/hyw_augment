@@ -1,14 +1,12 @@
 """Tests for the orthography converter (orthography.py)."""
 
-import pytest
 from hyw_augment.orthography import (
     OrthographyConverter,
     _FlexRule,
-    _parse_flex_side,
-    _parse_flex_rules,
     _parse_char_rules,
+    _parse_flex_rules,
+    _parse_flex_side,
 )
-
 
 # ── _parse_flex_side ──────────────────────────────────────────────────────────
 

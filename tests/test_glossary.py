@@ -1,7 +1,8 @@
 """Tests for the glossary module (glossary.py)."""
 
 import pytest
-from hyw_augment.glossary import Glossary, GlossaryEntry, _POS_MAP
+
+from hyw_augment.glossary import _POS_MAP, Glossary, GlossaryEntry
 
 # Armenian POS abbreviations used below are taken directly from _POS_MAP keys
 # and written as \uXXXX escapes to avoid script-mixing bugs in source

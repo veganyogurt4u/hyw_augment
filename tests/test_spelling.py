@@ -9,10 +9,7 @@ import io
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from hyw_augment.spelling import SpellChecker, _SUGGEST_RE
-
+from hyw_augment.spelling import _SUGGEST_RE, SpellChecker
 
 # ── _SUGGEST_RE regex ─────────────────────────────────────────────────────────
 
