@@ -19,6 +19,8 @@ __pycache__/
 *.db
 # (currently) Derived from script
 data/extracted-words.json
+# very stubby, skipping for now
+data/prefixes-and-suffixes.json
 
 # OS
 .DS_Store
