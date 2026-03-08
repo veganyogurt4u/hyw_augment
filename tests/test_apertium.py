@@ -2,7 +2,7 @@
 
 import pytest
 
-from hyw_augment.apertium import ApertiumAnalysis, ApertiumAnalyzer
+from hyw_augment.apertium import ApertiumAnalysis, ApertiumAnalyzer, _inflection_from_tags
 
 # ── Fixture helper ────────────────────────────────────────────────────────────
 
@@ -248,3 +248,55 @@ def test_parse_batch_output_ignores_blank_lines():
     output = "\n\nword\tlemma<n><sg>\t0.0\n\n"
     results = _analyzer()._parse_batch_output(output)
     assert "word" in results
+
+
+# ── _inflection_from_tags ────────────────────────────────────────────────────
+
+def test_inflection_from_tags_noun():
+    inf = _inflection_from_tags(["n", "pl", "abl", "def"])
+    assert inf.lemma_type == "NOMINAL"
+    assert inf.case == "ABLATIVE"
+    assert inf.number == "PLURAL"
+    assert inf.article == "DEFINITE"
+    assert inf.raw_tags == ["n", "pl", "abl", "def"]
+    assert inf.inflection_id == "apt:n|pl|abl|def"
+
+
+def test_inflection_from_tags_verb():
+    inf = _inflection_from_tags(["v", "pres", "indc", "p1", "sg"])
+    assert inf.lemma_type == "VERBAL"
+    assert inf.person == "FIRST"
+    assert inf.number == "SINGULAR"
+    assert inf.case is None
+    assert inf.raw_tags == ["v", "pres", "indc", "p1", "sg"]
+
+
+def test_inflection_from_tags_adjective():
+    inf = _inflection_from_tags(["adj", "sg"])
+    assert inf.lemma_type == "NOMINAL"
+    assert inf.number == "SINGULAR"
+
+
+def test_inflection_from_tags_uninflected():
+    inf = _inflection_from_tags(["adv"])
+    assert inf.lemma_type == "UNINFLECTED"
+
+
+def test_inflection_from_tags_display_name_en():
+    inf = _inflection_from_tags(["n", "pl", "abl"])
+    assert "noun" in inf.display_name_en
+    assert "plural" in inf.display_name_en
+    assert "ablative" in inf.display_name_en
+
+
+def test_inflection_from_tags_unknown_tag_in_display():
+    inf = _inflection_from_tags(["n", "xyzzy"])
+    assert "xyzzy" in inf.display_name_en
+
+
+def test_inflection_from_tags_preserves_raw_tags():
+    tags = ["v", "caus", "past", "p3", "pl"]
+    inf = _inflection_from_tags(tags)
+    assert inf.raw_tags == tags
+    # caus has no structured field — only preserved in raw_tags
+    assert inf.case is None

@@ -388,3 +388,121 @@ def test_close_skips_backend_without_close():
     b.summary.return_value = ""
     engine = _engine_with(("backend", b))
     engine.close()  # should not raise
+
+
+# ── MorphEngine.generate ────────────────────────────────────────────────────
+
+def _mock_inflection(**kw):
+    """Minimal Inflection-like object for generation tests."""
+    inf = MagicMock()
+    inf.display_name_en = kw.get("display_name_en", "mock inflection")
+    inf.case = kw.get("case")
+    inf.number = kw.get("number")
+    inf.person = kw.get("person")
+    inf.article = kw.get("article")
+    inf.raw_tags = kw.get("raw_tags")
+    return inf
+
+
+def _mock_gen_backend(name, gen_map):
+    """Backend with generate() that returns preset (surface, inflection) tuples."""
+    spec = ["analyze", "generate", "summary"]
+    if name == "apertium":
+        spec.append("analyze_batch")
+    backend = MagicMock(spec=spec)
+    backend.analyze.side_effect = lambda form: []
+
+    if name == "apertium":
+        # Apertium generate takes (lemma, tags)
+        backend.generate.side_effect = lambda lemma, tags: gen_map.get(lemma, [])
+    else:
+        # Nayiri generate takes (lemma, **kwargs)
+        backend.generate.side_effect = lambda lemma, **kw: gen_map.get(lemma, [])
+
+    backend.summary.return_value = f"mock {name}"
+    return (name, backend)
+
+
+def test_generate_apertium_first_with_tags():
+    apt_inf = _mock_inflection(case="ABLATIVE", number="PLURAL", raw_tags=["n", "pl", "abl"])
+    nay_inf = _mock_inflection(case="ABLATIVE", number="PLURAL")
+
+    b1 = _mock_gen_backend("nayiri", {"word": [("word-abl-pl", nay_inf)]})
+    b2 = _mock_gen_backend("apertium", {"word": [("word-apt", apt_inf)]})
+    engine = _engine_with(b1, b2)
+
+    results = engine.generate("word", tags=["n", "pl", "abl"])
+    assert len(results) == 1
+    assert results[0][0] == "word-apt"
+
+
+def test_generate_falls_back_to_nayiri_when_apertium_misses():
+    nay_inf = _mock_inflection(case="ABLATIVE")
+    b1 = _mock_gen_backend("nayiri", {"word": [("word-nayiri", nay_inf)]})
+    b2 = _mock_gen_backend("apertium", {})  # misses "word"
+    engine = _engine_with(b1, b2)
+
+    results = engine.generate("word", tags=["n", "sg", "abl"])
+    assert len(results) == 1
+    assert results[0][0] == "word-nayiri"
+
+
+def test_generate_no_tags_uses_nayiri_only():
+    nay_inf = _mock_inflection()
+    b1 = _mock_gen_backend("nayiri", {"word": [("w1", nay_inf), ("w2", nay_inf)]})
+    b2 = _mock_gen_backend("apertium", {"word": [("w-apt", nay_inf)]})
+    engine = _engine_with(b1, b2)
+
+    results = engine.generate("word")
+    assert len(results) == 2
+    # Apertium should NOT have been called (no tags)
+    b2[1].generate.assert_not_called()
+
+
+def test_generate_returns_empty_no_backends():
+    engine = MorphEngine()
+    assert engine.generate("anything", tags=["n", "sg"]) == []
+
+
+def test_generate_returns_empty_all_miss():
+    b1 = _mock_gen_backend("nayiri", {})
+    b2 = _mock_gen_backend("apertium", {})
+    engine = _engine_with(b1, b2)
+    assert engine.generate("unknown", tags=["n", "sg"]) == []
+
+
+def test_generate_tag_degradation_for_nayiri():
+    """Tags that Nayiri doesn't understand are silently dropped."""
+    nay_inf = _mock_inflection(case="ABLATIVE")
+    b1 = _mock_gen_backend("nayiri", {"word": [("word-nay", nay_inf)]})
+    engine = _engine_with(b1)  # no apertium
+
+    # "n" maps to pos="NOUN", "abl" to case="ABLATIVE", "caus" silently ignored
+    results = engine.generate("word", tags=["n", "abl", "caus"])
+    assert len(results) == 1
+    b1[1].generate.assert_called_once_with("word", pos="NOUN", case="ABLATIVE")
+
+
+# ── MorphEngine.generate_all ────────────────────────────────────────────────
+
+def test_generate_all_queries_both_backends():
+    apt_inf = _mock_inflection(raw_tags=["n", "sg", "nom"])
+    nay_inf = _mock_inflection()
+    b1 = _mock_gen_backend("nayiri", {"word": [("w-nay", nay_inf)]})
+    b2 = _mock_gen_backend("apertium", {"word": [("w-apt", apt_inf)]})
+    engine = _engine_with(b1, b2)
+
+    all_gen = engine.generate_all("word", tags=["n", "sg", "nom"])
+    assert "nayiri" in all_gen
+    assert "apertium" in all_gen
+
+
+def test_generate_all_no_tags_skips_apertium():
+    nay_inf = _mock_inflection()
+    b1 = _mock_gen_backend("nayiri", {"word": [("w-nay", nay_inf)]})
+    b2 = _mock_gen_backend("apertium", {"word": [("w-apt", nay_inf)]})
+    engine = _engine_with(b1, b2)
+
+    all_gen = engine.generate_all("word")
+    assert "nayiri" in all_gen
+    assert "apertium" not in all_gen
