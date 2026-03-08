@@ -47,6 +47,9 @@ class Inflection:
     polarity: str | None = None  # POSITIVE, NEGATIVE
     verb_class: str | None = None
 
+    # Raw Apertium tags (lossless when source is transducer)
+    raw_tags: list[str] | None = None
+
 
 @dataclass(slots=True)
 class MorphAnalysis:
@@ -280,6 +283,7 @@ class Lexicon:
         self,
         lemma: str,
         *,
+        pos: str | None = None,
         case: str | None = None,
         number: str | None = None,
         person: str | None = None,
@@ -296,6 +300,8 @@ class Lexicon:
         results = []
 
         for entry in entries:
+            if pos is not None and entry.pos != pos:
+                continue
             for surface, inf_id in entry.word_forms:
                 inf = self.inflections.get(inf_id)
                 if inf is None:
