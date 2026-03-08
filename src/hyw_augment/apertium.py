@@ -2,7 +2,7 @@
 Apertium Western Armenian transducer integration.
 
 Wraps hfst-lookup to provide morphological analysis and generation
-using the apertium-hyw transducer as a fallback/complement to the
+using the apertium-hyw transducer as a complement to the
 Nayiri lexicon.
 
 Usage:
@@ -95,10 +95,60 @@ _APT_NUMBER_MAP: dict[str, str] = {"sg": "SINGULAR", "pl": "PLURAL"}
 _APT_PERSON_MAP: dict[str, str] = {"p1": "FIRST", "p2": "SECOND", "p3": "THIRD"}
 _APT_ARTICLE_MAP: dict[str, str] = {"def": "DEFINITE", "indef": "INDEFINITE"}
 
+# Reverse maps: normalized label → Apertium tag(s) (for Nayiri fallback)
+# POS is many-to-one (n,np→NOUN; post,pr→ADPOSITION; cnjcoo,cnjsub→CONJUNCTION),
+# so we collect all candidates for callers to try in order.
+_REVERSE_POS: dict[str, list[str]] = {}
+for _k, _v in _APT_POS_MAP.items():
+    _REVERSE_POS.setdefault(_v, [])
+    _REVERSE_POS[_v].append(_k)
+
+_REVERSE_CASE: dict[str, str] = {v: k for k, v in _APT_CASE_MAP.items()}
+_REVERSE_NUMBER: dict[str, str] = {v: k for k, v in _APT_NUMBER_MAP.items()}
+_REVERSE_PERSON: dict[str, str] = {v: k for k, v in _APT_PERSON_MAP.items()}
+_REVERSE_ARTICLE: dict[str, str] = {v: k for k, v in _APT_ARTICLE_MAP.items()}
+
 # ── Parsing helpers ──────────────────────────────────────────────────────
 
 _ANALYSIS_RE = re.compile(r"^([^<]+)((?:<[^>]+>)*)$")
 _TAG_RE = re.compile(r"<([^>]+)>")
+
+
+# ── Tag → Inflection builder ─────────────────────────────────────────────
+
+def _inflection_from_tags(tags: list[str]) -> "Inflection":
+    """Build a nayiri.Inflection from a list of Apertium tags."""
+    from hyw_augment.nayiri import Inflection
+
+    # Determine POS / lemma_type
+    pos_tags = set(tags) & set(_APT_POS_MAP)
+    if pos_tags & {"v"}:
+        lemma_type = "VERBAL"
+    elif pos_tags & {"n", "np", "adj", "num", "prn", "det"}:
+        lemma_type = "NOMINAL"
+    else:
+        lemma_type = "UNINFLECTED"
+
+    # Map structured fields
+    case = next((_APT_CASE_MAP[t] for t in tags if t in _APT_CASE_MAP), None)
+    number = next((_APT_NUMBER_MAP[t] for t in tags if t in _APT_NUMBER_MAP), None)
+    person = next((_APT_PERSON_MAP[t] for t in tags if t in _APT_PERSON_MAP), None)
+    article = next((_APT_ARTICLE_MAP[t] for t in tags if t in _APT_ARTICLE_MAP), None)
+
+    # Build human-readable description from tag labels
+    display_en = ", ".join(_TAG_LABELS.get(t, t) for t in tags)
+
+    return Inflection(
+        inflection_id="apt:" + "|".join(tags),
+        lemma_type=lemma_type,
+        display_name_hy="",
+        display_name_en=display_en,
+        case=case,
+        number=number,
+        person=person,
+        article=article,
+        raw_tags=tags,
+    )
 
 
 # ── Data classes ─────────────────────────────────────────────────────────
@@ -378,8 +428,11 @@ class ApertiumAnalyzer:
         output = self._run_batch(self.automorf, unique)
         return self._parse_batch_output(output)
 
-    def generate(self, lemma: str, tags: list[str]) -> list[str]:
+    def generate(self, lemma: str, tags: list[str]) -> list[tuple[str, "Inflection"]]:
         """Generate surface forms from a lemma + apertium tag list.
+
+        Returns list of (surface_form, Inflection) tuples, matching the
+        Nayiri generate() return type for unified engine use.
 
         Example:
             apt.generate("some_lemma", ["n", "pl", "abl", "def"])
@@ -390,15 +443,20 @@ class ApertiumAnalyzer:
         query = f"{lemma}{tag_str}"
         output = self._run_batch(self.autogen, [query])
 
-        results = []
+        surfaces = []
         for line in output.split("\n"):
             line = line.strip()
             if not line:
                 continue
             parts = line.split("\t")
             if len(parts) >= 2 and "+?" not in parts[1]:
-                results.append(parts[1])
-        return results
+                surfaces.append(parts[1])
+
+        if not surfaces:
+            return []
+
+        inf = _inflection_from_tags(tags)
+        return [(s, inf) for s in surfaces]
 
     def is_known(self, form: str) -> bool:
         """Check if a surface form is recognized by the transducer."""
