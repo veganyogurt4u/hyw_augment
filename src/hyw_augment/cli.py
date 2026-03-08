@@ -57,6 +57,10 @@ def main() -> None:
         help="Generate forms for a lemma",
     )
     parser.add_argument(
+        "--tags",
+        help="Comma-separated Apertium tags for generation (e.g. n,pl,abl,def)",
+    )
+    parser.add_argument(
         "--coverage",
         action="store_true",
         help="Run coverage check (requires treebank + at least one analyzer)",
@@ -153,27 +157,25 @@ def main() -> None:
         # ── Generate ─────────────────────────────────────────────────────
 
         if args.generate:
-            # Generation is Nayiri-specific for now (uses its inflection system)
-            nayiri_backend = None
-            for name, backend in engine.backends:
-                if name == "nayiri":
-                    nayiri_backend = backend
-                    break
+            tags = [t.strip() for t in args.tags.split(",")] if args.tags else None
+            if tags:
+                generated = engine.generate_all(args.generate, tags)
+            else:
+                generated = engine.generate_all(args.generate)
 
-            if nayiri_backend:
-                forms = nayiri_backend.generate(args.generate)
-                if forms:
-                    print(f"═══ Forms of '{args.generate}' (Nayiri) ═══")
+            if generated:
+                for source, forms in generated.items():
+                    tag_label = f" [{','.join(tags)}]" if tags else ""
+                    print(f"═══ Forms of '{args.generate}'{tag_label} ({source}) ═══")
                     seen = set()
                     for surface, inf in forms:
                         key = (surface, inf.display_name_en)
                         if key not in seen:
                             seen.add(key)
                             print(f"  {surface:30s}  {inf.display_name_en}")
-                else:
-                    print(f"Lemma '{args.generate}' not found in Nayiri lexicon.")
             else:
-                print("Generation requires Nayiri lexicon (not loaded).")
+                backends = ", ".join(name for name, _ in engine.backends) or "none loaded"
+                print(f"Lemma '{args.generate}' not found (backends: {backends})")
             print()
 
         # ── Coverage ─────────────────────────────────────────────────────
