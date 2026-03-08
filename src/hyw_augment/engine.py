@@ -268,6 +268,94 @@ class MorphEngine:
 
         return results
 
+    # ── Generation ─────────────────────────────────────────────────────────
+
+    def generate(self, lemma: str, tags: list[str] | None = None):
+        """Generate surface forms for a lemma.
+
+        When *tags* are provided (Apertium-style, e.g. ["n", "pl", "abl"]),
+        Apertium is tried first; on miss the tags are translated to Nayiri
+        keyword filters (unknown tags silently ignored).  When *tags* is
+        None/empty, only Nayiri is queried (returns all forms for the lemma).
+
+        Returns list[tuple[str, Inflection]].
+        """
+        if tags:
+            return self._generate_with_tags(lemma, tags)
+        return self._generate_wildcard(lemma)
+
+    @staticmethod
+    def _tags_to_nayiri_kwargs(tags: list[str]) -> dict[str, str]:
+        """Translate Apertium tags to Nayiri generate() keyword filters."""
+        from hyw_augment.apertium import (
+            _APT_POS_MAP, _APT_CASE_MAP, _APT_NUMBER_MAP,
+            _APT_PERSON_MAP, _APT_ARTICLE_MAP,
+        )
+
+        kwargs: dict[str, str] = {}
+        for t in tags:
+            if t in _APT_POS_MAP:
+                kwargs["pos"] = _APT_POS_MAP[t]
+            elif t in _APT_CASE_MAP:
+                kwargs["case"] = _APT_CASE_MAP[t]
+            elif t in _APT_NUMBER_MAP:
+                kwargs["number"] = _APT_NUMBER_MAP[t]
+            elif t in _APT_PERSON_MAP:
+                kwargs["person"] = _APT_PERSON_MAP[t]
+            elif t in _APT_ARTICLE_MAP:
+                kwargs["article"] = _APT_ARTICLE_MAP[t]
+            # Tags without a Nayiri equivalent are silently ignored
+        return kwargs
+
+    def _generate_with_tags(self, lemma: str, tags: list[str]) -> list:
+        """Try Apertium first, fall back to Nayiri with tag translation."""
+        # Apertium first
+        for name, backend in self.backends:
+            if name == "apertium" and hasattr(backend, "generate"):
+                results = backend.generate(lemma, tags)
+                if results:
+                    return results
+
+        # Nayiri fallback
+        kwargs = self._tags_to_nayiri_kwargs(tags)
+        for name, backend in self.backends:
+            if name == "nayiri" and hasattr(backend, "generate"):
+                results = backend.generate(lemma, **kwargs)
+                if results:
+                    return results
+
+        return []
+
+    def _generate_wildcard(self, lemma: str) -> list:
+        """No tags: query Nayiri only (all forms for the lemma)."""
+        for name, backend in self.backends:
+            if name == "nayiri" and hasattr(backend, "generate"):
+                results = backend.generate(lemma)
+                if results:
+                    return results
+        return []
+
+    def generate_all(
+        self, lemma: str, tags: list[str] | None = None,
+    ) -> dict[str, list]:
+        """Generate forms from every backend, keyed by backend name."""
+        nayiri_kwargs = self._tags_to_nayiri_kwargs(tags) if tags else {}
+        results: dict[str, list] = {}
+
+        for name, backend in self.backends:
+            if not hasattr(backend, "generate"):
+                continue
+            if name == "apertium" and tags:
+                hits = backend.generate(lemma, tags)
+            elif name == "nayiri":
+                hits = backend.generate(lemma, **nayiri_kwargs)
+            else:
+                continue
+            if hits:
+                results[name] = hits
+
+        return results
+
     # ── Validation & spelling ─────────────────────────────────────────────
 
     def validate(self, form: str) -> bool:
