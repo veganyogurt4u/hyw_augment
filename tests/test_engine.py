@@ -500,7 +500,8 @@ def test_generate_tag_degradation_for_nayiri():
 
 # ── MorphEngine.generate_all ────────────────────────────────────────────────
 
-def test_generate_all_queries_both_backends():
+def test_generate_all_with_tags_apertium_first():
+    """With tags, Apertium hit stops the search — Nayiri is not queried."""
     apt_inf = _mock_inflection(raw_tags=["n", "sg", "nom"])
     nay_inf = _mock_inflection()
     b1 = _mock_gen_backend("nayiri", {"word": [("w-nay", nay_inf)]})
@@ -508,8 +509,33 @@ def test_generate_all_queries_both_backends():
     engine = _engine_with(b1, b2)
 
     all_gen = engine.generate_all("word", tags=["n", "sg", "nom"])
-    assert "nayiri" in all_gen
     assert "apertium" in all_gen
+    assert "nayiri" not in all_gen
+
+
+def test_generate_all_with_tags_falls_back_to_nayiri():
+    """With tags, Nayiri is queried only when Apertium misses."""
+    nay_inf = _mock_inflection()
+    b1 = _mock_gen_backend("nayiri", {"word": [("w-nay", nay_inf)]})
+    b2 = _mock_gen_backend("apertium", {})  # Apertium has no results
+    engine = _engine_with(b1, b2)
+
+    all_gen = engine.generate_all("word", tags=["n", "sg", "nom"])
+    assert "nayiri" in all_gen
+    assert "apertium" not in all_gen
+
+
+def test_generate_all_all_backends_flag():
+    """all_backends=True queries both even when Apertium succeeds."""
+    apt_inf = _mock_inflection(raw_tags=["n", "sg", "nom"])
+    nay_inf = _mock_inflection()
+    b1 = _mock_gen_backend("nayiri", {"word": [("w-nay", nay_inf)]})
+    b2 = _mock_gen_backend("apertium", {"word": [("w-apt", apt_inf)]})
+    engine = _engine_with(b1, b2)
+
+    all_gen = engine.generate_all("word", tags=["n", "sg", "nom"], all_backends=True)
+    assert "apertium" in all_gen
+    assert "nayiri" in all_gen
 
 
 def test_generate_all_no_tags_skips_apertium():

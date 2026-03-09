@@ -339,22 +339,44 @@ class MorphEngine:
 
     def generate_all(
         self, lemma: str, tags: list[str] | None = None,
+        *, all_backends: bool = False,
     ) -> dict[str, list]:
-        """Generate forms from every backend, keyed by backend name."""
-        nayiri_kwargs = self._tags_to_nayiri_kwargs(tags) if tags else {}
+        """Generate forms from backends, keyed by backend name.
+
+        With *tags*: tries Apertium first; falls back to Nayiri (with
+        translated tag filters) only when Apertium has no results.
+        Set *all_backends=True* to query every backend regardless.
+
+        Without tags: Nayiri wildcard only (all forms for the lemma).
+        """
         results: dict[str, list] = {}
 
+        if not tags:
+            # No tags: Nayiri wildcard only
+            for name, backend in self.backends:
+                if name == "nayiri" and hasattr(backend, "generate"):
+                    hits = backend.generate(lemma)
+                    if hits:
+                        results[name] = hits
+            return results
+
+        # Tags given — try Apertium first
         for name, backend in self.backends:
-            if not hasattr(backend, "generate"):
-                continue
-            if name == "apertium" and tags:
+            if name == "apertium" and hasattr(backend, "generate"):
                 hits = backend.generate(lemma, tags)
-            elif name == "nayiri":
+                if hits:
+                    results[name] = hits
+
+        if results and not all_backends:
+            return results
+
+        # Apertium missed (or all_backends requested) — try Nayiri
+        nayiri_kwargs = self._tags_to_nayiri_kwargs(tags)
+        for name, backend in self.backends:
+            if name == "nayiri" and hasattr(backend, "generate"):
                 hits = backend.generate(lemma, **nayiri_kwargs)
-            else:
-                continue
-            if hits:
-                results[name] = hits
+                if hits:
+                    results[name] = hits
 
         return results
 
