@@ -123,7 +123,9 @@ _TAG_RE = re.compile(r"<([^>]+)>")
 
 # ── Tag → Inflection builder ─────────────────────────────────────────────
 
-def _inflection_from_tags(tags: list[str]) -> "Inflection":
+# type is string annotation to avoid circular import with nayiri.Inflection
+# ruff doesn't know about those, so using noqa: F821 to silence complaints
+def _inflection_from_tags(tags: list[str]) -> "Inflection": #noqa: F821
     """Build a nayiri.Inflection from a list of Apertium tags."""
     from hyw_augment.nayiri import Inflection
 
@@ -459,7 +461,9 @@ class ApertiumAnalyzer:
 
         return results
 
-    def generate(self, lemma: str, tags: list[str]) -> list[tuple[str, "Inflection"]]:
+# type is string annotation to avoid circular import with nayiri.Inflection
+# ruff doesn't know about those, so using noqa: F821 to silence complaints
+    def generate(self, lemma: str, tags: list[str]) -> list[tuple[str, "Inflection"]]: #noqa: F821
         """Generate surface forms from a lemma + apertium tag list.
 
         Returns list of (surface_form, Inflection) tuples, matching the

@@ -288,8 +288,11 @@ class MorphEngine:
     def _tags_to_nayiri_kwargs(tags: list[str]) -> dict[str, str]:
         """Translate Apertium tags to Nayiri generate() keyword filters."""
         from hyw_augment.apertium import (
-            _APT_POS_MAP, _APT_CASE_MAP, _APT_NUMBER_MAP,
-            _APT_PERSON_MAP, _APT_ARTICLE_MAP,
+            _APT_ARTICLE_MAP,
+            _APT_CASE_MAP,
+            _APT_NUMBER_MAP,
+            _APT_PERSON_MAP,
+            _APT_POS_MAP,
         )
 
         kwargs: dict[str, str] = {}
