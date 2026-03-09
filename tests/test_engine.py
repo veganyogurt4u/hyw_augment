@@ -157,6 +157,21 @@ def test_analyze_nayiri_falls_back_to_insensitive():
     assert len(results) == 1
 
 
+def test_analyze_apertium_falls_back_to_insensitive():
+    """Apertium also gets case-insensitive fallback via analyze_insensitive."""
+    a = _mock_analysis(lemma="apt-lemma")
+    b = MagicMock(spec=["analyze", "analyze_insensitive", "analyze_batch", "is_known", "summary"])
+    b.analyze.side_effect = lambda form: []  # exact always misses
+    b.analyze_insensitive.side_effect = lambda form: [a] if form == "Word" else []
+    b.summary.return_value = "mock"
+    engine = _engine_with(("apertium", b))
+
+    results = engine.analyze("Word")
+    assert len(results) == 1
+    assert results[0].source == "apertium"
+    assert results[0].lemma == "apt-lemma"
+
+
 # ── MorphEngine.analyze_all ───────────────────────────────────────────────────
 
 def test_analyze_all_queries_every_backend():

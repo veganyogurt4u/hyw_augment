@@ -91,7 +91,7 @@ def test_lexicon_generate():
     lex = Lexicon.from_file(p)
 
     # Try generating ablative singular forms
-    forms = lex.generate("արdelays", case="ABLATIVE", number="SINGULAR")
+    forms = lex.generate("արշաւ", case="ABLATIVE", number="SINGULAR")
     if forms:  # only if this lemma is in the sample
         surfaces = [s for s, _ in forms]
         assert len(surfaces) > 0
