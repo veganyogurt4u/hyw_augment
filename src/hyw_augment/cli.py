@@ -61,6 +61,11 @@ def main() -> None:
         help="Comma-separated Apertium tags for generation (e.g. n,pl,abl,def)",
     )
     parser.add_argument(
+        "--backend",
+        choices=["nayiri", "apertium", "all"],
+        help="Backend for --generate (default: Apertium first, Nayiri fallback)",
+    )
+    parser.add_argument(
         "--coverage",
         action="store_true",
         help="Run coverage check (requires treebank + at least one analyzer)",
@@ -158,10 +163,30 @@ def main() -> None:
 
         if args.generate:
             tags = [t.strip() for t in args.tags.split(",")] if args.tags else None
-            if tags:
-                generated = engine.generate_all(args.generate, tags)
-            else:
-                generated = engine.generate_all(args.generate)
+            backend = getattr(args, "backend", None)
+
+            if backend in (None, "all"):
+                # Default or "all": normal fallback (or query both)
+                generated = engine.generate_all(
+                    args.generate, tags, all_backends=(backend == "all"),
+                )
+            elif backend == "apertium":
+                generated = {}
+                for name, be in engine.backends:
+                    if name == "apertium" and hasattr(be, "generate"):
+                        hits = be.generate(args.generate, tags or [])
+                        if hits:
+                            generated["apertium"] = hits
+            elif backend == "nayiri":
+                generated = {}
+                nayiri_kwargs = (
+                    engine._tags_to_nayiri_kwargs(tags) if tags else {}
+                )
+                for name, be in engine.backends:
+                    if name == "nayiri" and hasattr(be, "generate"):
+                        hits = be.generate(args.generate, **nayiri_kwargs)
+                        if hits:
+                            generated["nayiri"] = hits
 
             if generated:
                 for source, forms in generated.items():
