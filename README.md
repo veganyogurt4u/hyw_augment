@@ -119,6 +119,14 @@ src/hyw_augment/
 hyw_augment.toml              # Default config (paths to data, backends)
 ```
 
+#### Armenian to English key for examples below:
+"լեմմա" = "lemma"
+"բառ" = "word" / "form"
+"Նոր ուղղագրություն" = "reformed orthography" (deliberately spelled in reformed orthography)
+"շարադրութիւն" = "text"
+"սխալ" = "wrong"
+
+
 ### conllu.py
 - `Treebank.from_file()` / `.from_files()` / `.from_dir()`
 - `Sentence` with `.tokens`, `.real_tokens`, `.text`, `.root()`
@@ -127,58 +135,63 @@ hyw_augment.toml              # Default config (paths to data, backends)
 
 ### nayiri.py
 - `Lexicon.from_file()` — loads JSON, builds indexes
-- `lex.analyze("form")` → list of MorphAnalysis (form → lemma + features)
-- `lex.generate("lemma", case=..., number=...)` → list of surface forms
-- `lex.is_valid_form("form")` → bool
+- `lex.analyze("բառ")` → list of MorphAnalysis (form → lemma + features)
+- `lex.generate("լեմմա", case=..., number=...)` → list of surface forms
+- `lex.is_valid_form("բառ")` → bool
 
 ### apertium.py
 - `ApertiumAnalyzer(apertium_dir)` — wraps `hfst-lookup` with the compiled transducer
-- `apt.analyze("form")` → list of ApertiumAnalysis (form → lemma + apertium tags)
-- `apt.analyze_batch(["form1", "form2", ...])` → dict of form → analyses (single subprocess call)
-- `apt.generate("lemma", ["n", "pl", "abl", "def"])` → list of surface forms
+- `apt.analyze("բառ")` → list of ApertiumAnalysis (form → lemma + apertium tags)
+- `apt.analyze_batch(["ձեւ1", "ձեւ2", ...])` → dict of form → analyses (single subprocess call)
+- `apt.generate("լեմմա", ["n", "sg", "dat_gen"])` → list of (surface, Inflection) tuples
+- `apt.is_known("բառ")` → bool (does the transducer recognize this word?)
 - `ApertiumAnalysis` is duck-type compatible with `MorphAnalysis` (.lemma, .pos, .description_en, .case, .number, etc.)
 - Apertium tag set mapped to human-readable labels and to Nayiri/UD-compatible feature names
+- Note: nouns use `dat_gen` (collapsed dative/genitive); pronouns have separate `dat`/`gen` tags
 
 ### spelling.py
 - `SpellChecker(dict_dir)` — wraps the `hunspell` CLI in persistent pipe mode (same pattern as Apertium)
-- `sc.check("form")` → bool (is this a valid word?)
-- `sc.suggest("form")` → list of suggested corrections
-- `sc.check_and_suggest("form")` → (bool, list) combined check + suggest
-- `sc.check_batch(forms)` / `sc.suggest_batch(forms)` → batch operations
+- `sc.check("բառ")` → bool (is this a valid word?)
+- `sc.suggest("բառ")` → list of suggested corrections
+- `sc.check_and_suggest("բառ")` → (bool, list) combined check + suggest
+- `sc.check_batch(բառեր)` / `sc.suggest_batch(բառեր)` → batch operations
 - Uses HySpell's Classical Armenian dictionary (hy-c.aff + hy-c.dic, 160K stems)
 
 ### orthography.py
 - `OrthographyConverter(dict_dir)` — loads HySpell's Reformed↔Classical mapping tables
-- `conv.convert_word("reformed_form")` → Classical equivalent
-- `conv.convert_text("reformed text")` → full text conversion (preserves whitespace/punctuation)
-- `conv.is_reformed("form")` → True if word has a different Classical spelling
-- `conv.detect_reformed_words("text")` → list of (reformed, classical) pairs found
+- `conv.convert_word("Նոր_ուղղագրությունի_բառ")` → Classical equivalent
+- `conv.convert_text("Նոր ուղղագրությունի շարադրութիւն")` → full text conversion (preserves whitespace/punctuation)
+- `conv.is_reformed("բառ")` → True if word has a different Classical spelling
+- `conv.detect_reformed_words("շարադրութիւն")` → list of (reformed, classical) pairs found
 - Uses lexicon map (161K entries) for base forms, suffix rules (159 rules) for inflected forms
 
 ### glossary.py
 - `Glossary.from_file(path)` — loads SmallArmDic.txt (19K Armenian headwords)
-- `glossary.lookup("word")` → list of GlossaryEntry with `.pos`, `.definition`, `.is_transitive`
+- `glossary.lookup("բառ")` → list of GlossaryEntry with `.pos`, `.definition`, `.is_transitive`
 - POS tags normalized from Armenian abbreviations (գ.→NOUN, նրգ.→VERB_TR, etc.)
 
 ### calfa.py
 - `CaLFALexicon.from_dir(path)` — loads `definitions/en-definitions01.tsv` and `synonyms/synonyms01.tsv`
-- `lex.lookup("word")` → list of CaLFAEntry with `.pos`, `.pos_raw`, `.complement`, `.definition_en`
-- `lex.synonyms_for("word")` → list of Armenian synonym strings
+- `lex.lookup("բառ")` → list of CaLFAEntry with `.pos`, `.pos_raw`, `.complement`, `.definition_en`
+- `lex.synonyms_for("բառ")` → list of Armenian synonym strings
 - POS abbreviations normalized from Latin: `s.`→NOUN, `adj.`→ADJECTIVE, `v.`→VERB, `adv.`→ADVERB, `int.`→INTERJECTION, etc.
 - Compound POS strings (e.g. `s. adv.`) use the first recognized token as primary POS
 
 ### engine.py
 - `MorphEngine.from_config("hyw_augment.toml")` — loads everything from config
-- `engine.analyze("form")` → list of AnalysisResult (first backend that hits)
-- `engine.analyze_all("form")` → dict of backend name → results (every backend)
-- `engine.analyze_batch(forms)` → efficient bulk analysis with automatic fallback
-- `engine.validate("form")` → bool (checks Nayiri, Apertium, and Hunspell)
-- `engine.suggest("form")` → spelling suggestions via Hunspell
-- `engine.convert_reformed("text")` → Reformed-to-Classical orthography conversion
-- `engine.detect_reformed("text")` → find Reformed-orthography words
-- `engine.lookup_definition("word")` → glossary entries with POS + Armenian definitions (HySpell SmallArmDic)
-- `engine.lookup_calfa("word")` → CalfaEntry list with English definitions, or None
-- `engine.synonyms_calfa("word")` → Armenian synonyms list from Calfa (empty list if not found)
+- `engine.analyze("բառ")` → list of AnalysisResult (first backend that hits)
+- `engine.analyze_all("բառ")` → dict of backend name → results (every backend)
+- `engine.analyze_batch(բառեր)` → efficient bulk analysis with automatic fallback
+- `engine.generate("լեմմա", tags=["n", "sg", "dat_gen"])` → list of (surface, Inflection); Apertium first, Nayiri fallback
+- `engine.generate("լեմմա")` → all forms from Nayiri (no tags = wildcard)
+- `engine.generate_all("լեմմա", tags, all_backends=True)` → dict of backend name → results
+- `engine.validate("բառ")` → bool (checks Nayiri, Apertium, and Hunspell)
+- `engine.suggest("բառ")` → spelling suggestions via Hunspell
+- `engine.convert_reformed("շարադրութիւն")` → Reformed-to-Classical orthography conversion
+- `engine.detect_reformed("շարադրութիւն")` → find Reformed-orthography words
+- `engine.lookup_definition("բառ")` → glossary entries with POS + Armenian definitions (HySpell SmallArmDic)
+- `engine.lookup_calfa("բառ")` → CalfaEntry list with English definitions, or None
+- `engine.synonyms_calfa("բառ")` → Armenian synonyms list from Calfa (empty list if not found)
 - `AnalysisResult` wraps any backend's analysis with `.source` tag + delegates `.lemma`, `.pos`, etc.
 
 ### coverage.py
@@ -213,25 +226,33 @@ With a config file present, the CLI loads everything automatically — no flags 
 ### CLI
 
 Analyze a word (uses all configured backends):
-`hyw-augment --analyze "WORD"`
+`hyw-augment --analyze "բառ"`
 
-Generate forms from a lemma:
-`hyw-augment --generate "LEMMA"`
+Generate forms from a lemma (no tags = all Nayiri forms):
+`hyw-augment --generate "լեմմա"`
+
+Generate with Apertium tags (Apertium first, Nayiri fallback):
+`hyw-augment --generate "լեմմա" --tags n,sg,dat_gen`
+
+Force a specific backend for generation:
+`hyw-augment --generate "լեմմա" --tags n,sg,dat_gen --backend apertium`
+`hyw-augment --generate "լեմմա" --tags n,sg,dat_gen --backend nayiri`
+`hyw-augment --generate "լեմմա" --tags n,sg,dat_gen --backend all`
 
 Validate a word (checks Nayiri, Apertium, and Hunspell):
-`hyw-augment --validate "WORD"`
+`hyw-augment --validate "բառ"`
 
 Get spelling suggestions:
-`hyw-augment --suggest "MISSPELLED_WORD"`
+`hyw-augment --suggest "սխալ_բառ"`
 
 Convert Reformed (Eastern) orthography to Classical (Western):
-`hyw-augment --convert "REFORMED_TEXT"`
+`hyw-augment --convert "նոր ուղղագրությունի շարադրութիւն"`
 
 Look up a word's Armenian definition (HySpell SmallArmDic):
-`hyw-augment --define "WORD"`
+`hyw-augment --define "բառ"`
 
 Look up a word's English definition (Calfa):
-`hyw-augment --define-en "WORD"`
+`hyw-augment --define-en "բառ"`
 
 Coverage check:
 `hyw-augment --coverage`
@@ -240,9 +261,9 @@ Coverage with mismatch export:
 `hyw-augment --coverage --mismatches data/mismatches.tsv`
 
 Override config with explicit flags:
-`hyw-augment --nayiri data/*.json --apertium /path/to/apertium-hyw --analyze "WORD"`
-`hyw-augment --hyspell /path/to/Dictionaries --validate "WORD"`
-`hyw-augment --calfa /path/to/lexical-databases --define-en "WORD"`
+`hyw-augment --nayiri data/*.json --apertium /path/to/apertium-hyw --analyze "բառ"`
+`hyw-augment --hyspell /path/to/Dictionaries --validate "բառ"`
+`hyw-augment --calfa /path/to/lexical-databases --define-en "բառ"`
 
 Extract mismatched words between UD and Nayiri (first pass for building function words list):
 ```
@@ -289,43 +310,61 @@ from hyw_augment import MorphEngine
 engine = MorphEngine.from_config()
 
 # Analyze — first backend that hits
-results = engine.analyze("WORD")
+results = engine.analyze("բառ")
 for r in results:
     print(r.source, r.lemma, r.pos, r.description_en)
 
 # Compare all backends
-all_results = engine.analyze_all("WORD")
+all_results = engine.analyze_all("բառ")
 for source, results in all_results.items():
     print(f"--- {source} ---")
     for r in results:
         print(f"  {r.lemma} [{r.pos}]")
 
-# Validate a word (checks all backends + spell checker)
-engine.validate("WORD")  # True/False
+# Generate forms — Apertium first, Nayiri fallback
+forms = engine.generate("լեմմա", tags=["n", "sg", "dat_gen"])
+for surface, inflection in forms:
+    print(surface, inflection.display_name_en)
 
-# Spelling suggestions
-engine.suggest("MISSPELLED_WORD")  # ["suggestion1", "suggestion2", ...]
+# Generate without tags — all Nayiri forms for the lemma
+forms = engine.generate("լեմմա")
+
+# Generate from all backends (keyed by backend name)
+all_forms = engine.generate_all("լեմմա", tags=["n", "sg", "dat_gen"])
+for source, forms in all_forms.items():
+    print(f"--- {source} ---")
+    for surface, inflection in forms:
+        print(f"  {surface}  {inflection.display_name_en}")
+
+# Force both backends
+all_forms = engine.generate_all("լեմմա", tags=["n", "sg", "dat_gen"], all_backends=True)
+
+# Validate a word (checks all backends + spell checker)
+engine.validate("բառ")  # True/False
+
+# Spelling suggestions for misspelled words
+engine.suggest("սխալ_բառ")  # returns ["suggestion1", "suggestion2", ...]
 
 # Convert Reformed (Eastern) orthography to Classical (Western)
-engine.convert_reformed("reformed text")  # "classical text"
+engine.convert_reformed("Նոր ուղղագրությունի շարադրություն")  # returns "classical text"
 
 # Detect Reformed words in text
-engine.detect_reformed("mixed text")  # [("reformed_word", "classical_word"), ...]
+engine.detect_reformed("խառնված ուղղագրությունի շարադրութիւն")  # returns pairs of [("reformed_word", "classical_word"), ...]
 
 # Look up Armenian definitions (HySpell SmallArmDic)
-entries = engine.lookup_definition("WORD")
+entries = engine.lookup_definition("բառ")
 for e in entries:
     print(e.pos, e.definition)  # NOUN, Armenian definition text
 
 # Look up English definitions (Calfa)
-entries = engine.lookup_calfa("WORD")
+entries = engine.lookup_calfa("բառ")
 if entries:
     for e in entries:
         print(e.pos, e.definition_en)   # NOUN, English definition text
         print(e.complement)             # inflection suffix hint, e.g. "ու"
 
 # Armenian synonyms (Calfa)
-synonyms = engine.synonyms_calfa("WORD")  # ["synonym1", "synonym2", ...]
+synonyms = engine.synonyms_calfa("բառ")  # ["synonym1", "synonym2", ...]
 
 # Treebank exploration
 from hyw_augment import Treebank
@@ -358,7 +397,7 @@ detect-and-enforce (maybe): look at first N words of text, infer which system, f
 
 - What sort of word is է and similar? An auxilary? A function word? A suffix? It is obviously all of these, but how best to integrate? Need to make list of function words separate from words missing from Nayiri lexicon in general (lexicon is stated on project page to be incomplete/rolling release). currently in progress -- have extracted word list. also need to check to see if this is redundant given apertium/hyspell integration, or if would be better served by extracting these from there.
 
-- Originally this was working on inflectional morphology, ie we're taking lemmas and giving them word forms. But Armenian is (at least somewhat) agglutinative. How, then, is derivational morphology (ie building words from word-bits) best handled? For example, in present setup from Nayiri, "անհատ" is one lexeme/lemma; but it's also ան = without հատ = one discrete unit, and native speakers would recognize this pattern. An LLM over a large enough corpus would recognize this pattern. A parser should too, and hyspell sort of does this, but the ruleset could use work. Quick'n'dirty step one to roll my own is to do stripping based on set prefix/suffix list: need to make. And then rules for how the words sometimes change when these attach. Future steps may lead towards a cleaner, more built out finite state transducer. Also need to get more in the weeds about how Apertium handles this -- paper by Dolatian et al states that they built out rudimentary ruleset, and getting into the details worthwhile. HySpell also very clearly does something here. In fact, need to deal with overgenerations by HySpell toolkit. Work by Hrayr Varaz on derivational creation of words and their parsability relevant here (i believe this work is currently unpublished). Mechanism for flagging weird words by user? Like either missing ones or "no not like that" ones? similar to orthographic strictness toggle above, this is actually a philosophical question: hayeren@ jgun e, guzem vor joghovurt xaghan lezvin hed, payc miajamanag g@ hasknam vor martik guzen jishd krel yev gartal -- inchbes grnank ham al xaghal yev nor parer steghdzel yev al unecadz lezunis bahel? (latinadar for ease-of-keyboarding-at-terminal purposes)
+- Originally this was working on inflectional morphology, ie we're taking lemmas and giving them word forms. But Armenian is (at least somewhat) agglutinative. How, then, is derivational morphology (ie building words from word-bits) best handled? For example, in present setup from Nayiri, "անհատ" is one lexeme/lemma; but it's also ան = without հատ = one discrete unit, and native speakers would recognize this pattern. An LLM over a large enough corpus would recognize this pattern. A parser should too, and hyspell sort of does this, but the ruleset could use work. Quick'n'dirty step one to roll my own is to do stripping based on set prefix/suffix list: need to make. And then rules for how the words sometimes change when these attach. Future steps may lead towards a cleaner, more built out finite state transducer. Also need to get more in the weeds about how Apertium handles this -- paper by Dolatian et al states that they built out rudimentary ruleset, and getting into the details worthwhile. HySpell also very clearly does something here. In fact, need to deal with overgenerations by HySpell toolkit. Work by Hrayr Varaz (https://www.hrayrvaraz.com/) on derivational creation of words and their parsability relevant here (i believe this work is currently unpublished). Mechanism for flagging weird words by user? Like either missing ones or "no not like that" ones? similar to orthographic strictness toggle above, this is actually a philosophical question: hayeren@ jgun e, guzem vor joghovurt xaghan lezvin hed, payc miajamanag g@ hasknam vor martik guzen jishd krel yev gartal -- inchbes grnank ham al xaghal yev nor parer steghdzel yev al unecadz lezunis bahel? (latinadar for ease-of-keyboarding-at-terminal purposes)
 
 - something that feels a bit outside of scope at this stage but worth thinking about: languages aren't static, and i am not a prescriptivist: i do not want the experience of speaking a language, my language, even with a machine, to feel constrained by immutable rules. a properly trained llm will be able to more freely move between dialects, understand new words, and incorporate loan words, and this is a goal i very much want to pursue and will become more possible with additional corpora that demonstrate that linguistic reality in action. i also want to stop looking at incredibly mangled sentences that are clearly not the result of regional or linguistic drift but poor training data.
 
@@ -369,4 +408,3 @@ detect-and-enforce (maybe): look at first N words of text, infer which system, f
   - more tests! in files!
   - find/make/grab more texts, especially colloquial ones -- excited by future DaLIH Corpus releases
   - create lattice of latin letters to armenian -- want to allow latinadar input, requires some lookups for various letter flattenings
-  - update this README with, like, examples in hayeren
