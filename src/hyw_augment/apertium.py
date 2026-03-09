@@ -39,8 +39,8 @@ _TAG_LABELS: dict[str, str] = {
     "sg": "singular", "pl": "plural",
     # Case
     "nom": "nominative", "acc": "accusative", "gen": "genitive",
-    "dat": "dative", "abl": "ablative", "ins": "instrumental",
-    "loc": "locative",
+    "dat": "dative", "dat_gen": "dative/genitive",
+    "abl": "ablative", "ins": "instrumental", "loc": "locative",
     # Definiteness
     "def": "definite", "indef": "indefinite",
     # Person
@@ -85,25 +85,32 @@ _APT_POS_MAP: dict[str, str] = {
     "num": "NUMERAL",
 }
 
+# Case map: WArm collapses dative/genitive for nouns (dat_gen);
+# pronouns keep separate dat, gen tags.
 _APT_CASE_MAP: dict[str, str] = {
     "nom": "NOMINATIVE", "acc": "ACCUSATIVE", "gen": "GENITIVE",
-    "dat": "DATIVE", "abl": "ABLATIVE", "ins": "INSTRUMENTAL",
-    "loc": "LOCATIVE",
+    "dat": "DATIVE", "dat_gen": "DATIVE/GENITIVE",
+    "abl": "ABLATIVE", "ins": "INSTRUMENTAL", "loc": "LOCATIVE",
 }
 
 _APT_NUMBER_MAP: dict[str, str] = {"sg": "SINGULAR", "pl": "PLURAL"}
 _APT_PERSON_MAP: dict[str, str] = {"p1": "FIRST", "p2": "SECOND", "p3": "THIRD"}
 _APT_ARTICLE_MAP: dict[str, str] = {"def": "DEFINITE", "indef": "INDEFINITE"}
 
-# Reverse maps: normalized label → Apertium tag(s) (for Nayiri fallback)
-# POS is many-to-one (n,np→NOUN; post,pr→ADPOSITION; cnjcoo,cnjsub→CONJUNCTION),
-# so we collect all candidates for callers to try in order.
+# Reverse maps: normalized label → list of Apertium tags.
+# Callers should use POS context to pick the right candidate
+# (e.g. pronouns use "dat"/"gen", nouns use "dat_gen").
 _REVERSE_POS: dict[str, list[str]] = {}
 for _k, _v in _APT_POS_MAP.items():
-    _REVERSE_POS.setdefault(_v, [])
-    _REVERSE_POS[_v].append(_k)
+    _REVERSE_POS.setdefault(_v, []).append(_k)
 
-_REVERSE_CASE: dict[str, str] = {v: k for k, v in _APT_CASE_MAP.items()}
+_REVERSE_CASE: dict[str, list[str]] = {}
+for _k, _v in _APT_CASE_MAP.items():
+    _REVERSE_CASE.setdefault(_v, []).append(_k)
+# dat_gen also serves as both dative and genitive individually
+_REVERSE_CASE.setdefault("DATIVE", []).append("dat_gen")
+_REVERSE_CASE.setdefault("GENITIVE", []).append("dat_gen")
+
 _REVERSE_NUMBER: dict[str, str] = {v: k for k, v in _APT_NUMBER_MAP.items()}
 _REVERSE_PERSON: dict[str, str] = {v: k for k, v in _APT_PERSON_MAP.items()}
 _REVERSE_ARTICLE: dict[str, str] = {v: k for k, v in _APT_ARTICLE_MAP.items()}
@@ -420,13 +427,37 @@ class ApertiumAnalyzer:
         raw_lines = self._query_one(form)
         return self._parse_lines(form, raw_lines)
 
+    def analyze_insensitive(self, form: str) -> list[ApertiumAnalysis]:
+        """Analyze with case fallback: try original, then lowercase."""
+        results = self.analyze(form)
+        if not results and form != form.lower():
+            results = self.analyze(form.lower())
+        return results
+
     def analyze_batch(self, forms: list[str]) -> dict[str, list[ApertiumAnalysis]]:
-        """Analyze multiple surface forms in a single hfst-lookup call."""
+        """Analyze multiple surface forms in a single hfst-lookup call.
+
+        Includes case fallback: forms that get no results are retried
+        lowercased in a second batch call, with results keyed under
+        the original form.
+        """
         if not self.available or not forms:
             return {}
         unique = list(dict.fromkeys(forms))
         output = self._run_batch(self.automorf, unique)
-        return self._parse_batch_output(output)
+        results = self._parse_batch_output(output)
+
+        # Retry misses with lowercase
+        retry = {f: f.lower() for f in unique
+                 if not results.get(f) and f != f.lower()}
+        if retry:
+            lower_output = self._run_batch(self.automorf, list(dict.fromkeys(retry.values())))
+            lower_results = self._parse_batch_output(lower_output)
+            for orig, low in retry.items():
+                if lower_results.get(low):
+                    results[orig] = lower_results[low]
+
+        return results
 
     def generate(self, lemma: str, tags: list[str]) -> list[tuple[str, "Inflection"]]:
         """Generate surface forms from a lemma + apertium tag list.

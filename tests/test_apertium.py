@@ -247,14 +247,14 @@ def test_parse_batch_output_single_form():
 
 
 def test_parse_batch_output_multiple_forms():
-    output = "մարդ\tմարդ<n><sg>\t0.0\ntուն\tտուն<n><sg><nom>\t0.0\n"
+    output = "մարդ\tմարդ<n><sg>\t0.0\nտուն\tտուն<n><sg><nom>\t0.0\n"
     results = _analyzer()._parse_batch_output(output)
     assert results["մարդ"][0].pos == "NOUN", f"Expected 'NOUN', got {results['մարդ'][0].pos!r}"
     assert results["տուն"][0].pos == "NOUN", f"Expected 'NOUN', got {results['տուն'][0].pos!r}"
 
 
 def test_parse_batch_output_multiple_analyses_same_form():
-    output = "գիրք\tգիրք<n><sg>\t0.0\ngիրք\tգիրք<adj><sg>\t1.0\n"
+    output = "գիրք\tգիրք<n><sg>\t0.0\nգիրք\tգիրք<adj><sg>\t1.0\n"
     results = _analyzer()._parse_batch_output(output)
     assert len(results["գիրք"]) == 2, f"Expected 2 results for 'գիրք', got {len(results['գիրք'])}"
 
@@ -384,14 +384,24 @@ _has_apertium = Path(_APERTIUM_DIR).exists()
 skip_no_apertium = pytest.mark.skipif(not _has_apertium, reason="apertium-hyw not installed")
 
 # ── Armenian test words ───────────────────────────────────────────────────────
-MARD = "մարդ"
-MARD_DAT = "մարդու"
-TUN = "տուն"
-TUN_DAT = "տան"
-GIRQ = "գիրք"
-GIRQ_DAT = "գրքի"
-BAREV = "բարեւ"
+MART = "մարդ"
+MART_DAT = "մարդու"   # martu
+DUN = "տուն"
+DUN_DAT = "տան"      # dan
+KIRQ = "գիրք"
+KIRQ_DAT = "գիրքի"    # kirqi
+PAREV = "բարեւ"
 VOCH = "Ոչ"  # capitalized
+# Noun case forms of MART
+MART_ABL = "մարդէ"    # marte
+MART_INS = "մարդով"   # martov
+MART_PL = "մարդիկ"    # martik
+MART_DEF = "մարդը"    # mart@
+# Pronouns have distinct nom/acc/dat/gen unlike nouns
+YES = "ես"             # yes (nom)
+YES_ACC = "ինձ"        # indz
+YES_DAT = "ինծի"       # indzi
+YES_GEN = "իմ"         # im
 
 
 @skip_no_apertium
@@ -403,30 +413,30 @@ class TestApertiumIntegration:
         self.apt = ApertiumAnalyzer(_APERTIUM_DIR)
         assert self.apt.available, "Transducer found but not available"
 
-    def test_analyze_common_noun_mard(self):
-        """Analyze MARD — should find noun analysis."""
-        results = self.apt.analyze(MARD)
+    def test_analyze_common_noun_mart(self):
+        """Analyze MART — should find noun analysis."""
+        results = self.apt.analyze(MART)
         assert len(results) >= 1
-        assert any(a.pos == "NOUN" and a.lemma == MARD for a in results)
+        assert any(a.pos == "NOUN" and a.lemma == MART for a in results)
 
-    def test_analyze_common_noun_tun(self):
-        """Analyze TUN — should find noun analysis."""
-        results = self.apt.analyze(TUN)
+    def test_analyze_common_noun_dun(self):
+        """Analyze DUN — should find noun analysis."""
+        results = self.apt.analyze(DUN)
         assert len(results) >= 1
-        assert any(a.pos == "NOUN" and a.lemma == TUN for a in results)
+        assert any(a.pos == "NOUN" and a.lemma == DUN for a in results)
 
-    def test_analyze_common_noun_girq(self):
-        """Analyze GIRQ — should find noun analysis."""
-        results = self.apt.analyze(GIRQ)
+    def test_analyze_common_noun_kirq(self):
+        """Analyze KIRQ — should find noun analysis."""
+        results = self.apt.analyze(KIRQ)
         assert len(results) >= 1
-        assert any(a.pos == "NOUN" and a.lemma == GIRQ for a in results)
+        assert any(a.pos == "NOUN" and a.lemma == KIRQ for a in results)
 
-    def test_analyze_interjection_barev(self):
-        """Analyze BAREV — should find interjection analysis."""
-        results = self.apt.analyze(BAREV)
+    def test_analyze_interjection_parev(self):
+        """Analyze PAREV — should find interjection analysis."""
+        results = self.apt.analyze(PAREV)
         assert len(results) >= 1
         # It might be analyzed as noun, interjection, etc. – just ensure results.
-        assert any(a.lemma == BAREV for a in results)
+        assert any(a.lemma == PAREV for a in results)
 
     def test_analyze_insensitive_capitalized(self):
         """VOCH (capitalized) should be found via case-insensitive fallback."""
@@ -435,37 +445,101 @@ class TestApertiumIntegration:
 
     def test_analyze_batch_case_fallback(self):
         """analyze_batch retries capitalized forms with lowercase."""
-        results = self.apt.analyze_batch([VOCH, MARD, TUN])
-        assert len(results[MARD]) >= 1, f"No results for {MARD!r} in batch analysis"
-        assert len(results[TUN]) >= 1, f"No results for {TUN!r} in batch analysis"
+        results = self.apt.analyze_batch([VOCH, MART, DUN])
+        assert len(results[MART]) >= 1, f"No results for {MART!r} in batch analysis"
+        assert len(results[DUN]) >= 1, f"No results for {DUN!r} in batch analysis"
         assert len(results[VOCH]) >= 1, f"No results for {VOCH!r} in batch analysis"
 
-    def test_generate_noun_dative_mard(self):
-        """generate(MARD, [n,sg,dat]) should produce MARD_DAT."""
-        forms = self.apt.generate(MARD, ["n", "sg", "dat"])
+    def test_generate_noun_dat_gen_mart(self):
+        """generate(MART, [n,sg,dat_gen]) should produce MART_DAT."""
+        forms = self.apt.generate(MART, ["n", "sg", "dat_gen"])
         surfaces = [s for s, _inf in forms]
-        assert MARD_DAT in surfaces, f"Expected {MARD_DAT!r} in generated forms: {surfaces}"
+        assert MART_DAT in surfaces, f"Expected {MART_DAT!r} in generated forms: {surfaces}"
 
-    def test_generate_noun_dative_tun(self):
-        """generate(TUN, [n,sg,dat]) should produce TUN_DAT."""
-        forms = self.apt.generate(TUN, ["n", "sg", "dat"])
+    def test_generate_noun_dat_gen_dun(self):
+        """generate(DUN, [n,sg,dat_gen]) should produce DUN_DAT."""
+        forms = self.apt.generate(DUN, ["n", "sg", "dat_gen"])
         surfaces = [s for s, _inf in forms]
-        assert TUN_DAT in surfaces, f"Expected {TUN_DAT!r} in generated forms: {surfaces}"
+        assert DUN_DAT in surfaces, f"Expected {DUN_DAT!r} in generated forms: {surfaces}"
 
-    def test_generate_noun_dative_girq(self):
-        """generate(GIRQ, [n,sg,dat]) should produce GIRQ_DAT."""
-        forms = self.apt.generate(GIRQ, ["n", "sg", "dat"])
+    def test_generate_noun_dat_gen_kirq(self):
+        """generate(KIRQ, [n,sg,dat_gen]) should produce KIRQ_DAT."""
+        forms = self.apt.generate(KIRQ, ["n", "sg", "dat_gen"])
         surfaces = [s for s, _inf in forms]
-        assert GIRQ_DAT in surfaces, f"Expected {GIRQ_DAT!r} in generated forms: {surfaces}"
+        assert KIRQ_DAT in surfaces, f"Expected {KIRQ_DAT!r} in generated forms: {surfaces}"
 
     def test_generate_returns_inflection(self):
         """generate() returns (str, Inflection) tuples with correct metadata."""
-        forms = self.apt.generate(MARD, ["n", "sg", "dat"])
-        assert len(forms) >= 1, f"No forms generated for {MARD!r} with [n,sg,dat]"
+        forms = self.apt.generate(MART, ["n", "sg", "dat_gen"])
+        assert len(forms) >= 1, f"No forms generated for {MART!r} with [n,sg,dat_gen]"
         surface, inf = forms[0]
-        assert inf.case == "DATIVE", f"Expected case DATIVE, got {inf.case}"
+        assert inf.case == "DATIVE/GENITIVE", f"Expected case DATIVE/GENITIVE, got {inf.case}"
         assert inf.number == "SINGULAR", f"Expected number SINGULAR, got {inf.number}"
-        assert inf.raw_tags == ["n", "sg", "dat"], f"Expected raw_tags ['n', 'sg', 'dat'], got {inf.raw_tags}"
+        assert inf.raw_tags == ["n", "sg", "dat_gen"]
+
+    # ── Noun nominative/accusative (bare, no case tag) ──────────────────────
+
+    def test_generate_noun_nominative_bare(self):
+        """Noun nom/acc is generated with bare <n><sg> — no case tag."""
+        forms = self.apt.generate(MART, ["n", "sg"])
+        surfaces = [s for s, _inf in forms]
+        assert MART in surfaces, f"Expected {MART!r} in generated forms: {surfaces}"
+
+    def test_generate_noun_plural_bare(self):
+        """Noun plural nom/acc is generated with bare <n><pl>."""
+        forms = self.apt.generate(MART, ["n", "pl"])
+        surfaces = [s for s, _inf in forms]
+        assert MART_PL in surfaces, f"Expected {MART_PL!r} in generated forms: {surfaces}"
+
+    def test_generate_noun_ablative(self):
+        forms = self.apt.generate(MART, ["n", "sg", "abl"])
+        surfaces = [s for s, _inf in forms]
+        assert MART_ABL in surfaces, f"Expected {MART_ABL!r} in generated forms: {surfaces}"
+
+    def test_generate_noun_instrumental(self):
+        forms = self.apt.generate(MART, ["n", "sg", "ins"])
+        surfaces = [s for s, _inf in forms]
+        assert MART_INS in surfaces, f"Expected {MART_INS!r} in generated forms: {surfaces}"
+
+    def test_generate_noun_definite(self):
+        forms = self.apt.generate(MART, ["n", "sg", "def"])
+        surfaces = [s for s, _inf in forms]
+        assert MART_DEF in surfaces, f"Expected {MART_DEF!r} in generated forms: {surfaces}"
+
+    # ── Pronoun generation (separate nom/acc/dat/gen) ─────────────────────
+
+    def test_generate_pronoun_nominative(self):
+        """Pronoun nom uses separate <nom> tag, not bare."""
+        forms = self.apt.generate(YES, ["prn", "nom", "sg", "p1"])
+        surfaces = [s for s, _inf in forms]
+        assert YES in surfaces, f"Expected {YES!r} in generated forms: {surfaces}"
+
+    def test_generate_pronoun_accusative(self):
+        forms = self.apt.generate(YES, ["prn", "acc", "sg", "p1"])
+        surfaces = [s for s, _inf in forms]
+        assert YES_ACC in surfaces, f"Expected {YES_ACC!r} in generated forms: {surfaces}"
+
+    def test_generate_pronoun_dative(self):
+        forms = self.apt.generate(YES, ["prn", "dat", "sg", "p1"])
+        surfaces = [s for s, _inf in forms]
+        assert YES_DAT in surfaces, f"Expected {YES_DAT!r} in generated forms: {surfaces}"
+
+    def test_generate_pronoun_genitive(self):
+        forms = self.apt.generate(YES, ["prn", "gen", "sg", "p1"])
+        surfaces = [s for s, _inf in forms]
+        assert YES_GEN in surfaces, f"Expected {YES_GEN!r} in generated forms: {surfaces}"
+
+    def test_generate_pronoun_case_is_distinct(self):
+        """Pronoun .case should return the specific case, not DATIVE/GENITIVE."""
+        forms = self.apt.generate(YES, ["prn", "dat", "sg", "p1"])
+        assert len(forms) >= 1
+        _, inf = forms[0]
+        assert inf.case == "DATIVE", f"Expected DATIVE, got {inf.case}"
+
+        forms_gen = self.apt.generate(YES, ["prn", "gen", "sg", "p1"])
+        assert len(forms_gen) >= 1
+        _, inf_gen = forms_gen[0]
+        assert inf_gen.case == "GENITIVE", f"Expected GENITIVE, got {inf_gen.case}"
 
     def test_apertium_analyze_real_word_arshav(self):
         """Analyze a real Armenian word արշաւ — should find noun analysis."""

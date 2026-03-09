@@ -215,7 +215,7 @@ class MorphEngine:
         """Analyze a form using the first backend that returns results."""
         for name, backend in self.backends:
             raw = backend.analyze(form)
-            if not raw and name == "nayiri":
+            if not raw and hasattr(backend, "analyze_insensitive"):
                 raw = backend.analyze_insensitive(form)
             if raw:
                 return [AnalysisResult(source=name, analysis=a) for a in raw]
@@ -226,7 +226,7 @@ class MorphEngine:
         results: dict[str, list[AnalysisResult]] = {}
         for name, backend in self.backends:
             raw = backend.analyze(form)
-            if not raw and name == "nayiri":
+            if not raw and hasattr(backend, "analyze_insensitive"):
                 raw = backend.analyze_insensitive(form)
             if raw:
                 results[name] = [AnalysisResult(source=name, analysis=a) for a in raw]
@@ -258,7 +258,7 @@ class MorphEngine:
                 still_missing = []
                 for form in remaining:
                     raw = backend.analyze(form)
-                    if not raw and name == "nayiri":
+                    if not raw and hasattr(backend, "analyze_insensitive"):
                         raw = backend.analyze_insensitive(form)
                     if raw:
                         results[form] = [AnalysisResult(source=name, analysis=a) for a in raw]
@@ -297,7 +297,9 @@ class MorphEngine:
             if t in _APT_POS_MAP:
                 kwargs["pos"] = _APT_POS_MAP[t]
             elif t in _APT_CASE_MAP:
-                kwargs["case"] = _APT_CASE_MAP[t]
+                val = _APT_CASE_MAP[t]
+                if "/" not in val:  # collapsed tags like "DATIVE/GENITIVE" → wildcard
+                    kwargs["case"] = val
             elif t in _APT_NUMBER_MAP:
                 kwargs["number"] = _APT_NUMBER_MAP[t]
             elif t in _APT_PERSON_MAP:
