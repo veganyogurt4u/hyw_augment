@@ -1,6 +1,6 @@
 [project]
 name = "hyw_augment"
-version = "0.1.0"
+version = "0.2.0"
 description = "Western Armenian morphological augmentation layer for LLMs"
 requires-python = ">=3.11"
 license = {text = "MPL 2.0"}
