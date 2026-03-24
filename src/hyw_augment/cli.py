@@ -105,6 +105,16 @@ def main() -> None:
         "--define-en",
         help="Look up a word's English definition (Calfa lexicon)",
     )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="store_true",
+        help="Show which backend produced each result",
+    )
+    parser.add_argument(
+        "--diagnostic",
+        action="store_true",
+        help="Print full engine summary (backends, stats, POS breakdowns)",
+    )
     args = parser.parse_args()
 
     # ── Build engine ─────────────────────────────────────────────────────
@@ -142,8 +152,9 @@ def main() -> None:
         engine = MorphEngine.from_config(config_path)
 
     with engine:
-        print(engine.summary())
-        print()
+        if args.diagnostic:
+            print(engine.summary())
+            print()
 
         # ── Analyze ──────────────────────────────────────────────────────
 
@@ -151,7 +162,8 @@ def main() -> None:
             all_results = engine.analyze_all(args.analyze)
             if all_results:
                 for source, results in all_results.items():
-                    print(f"═══ Analysis of '{args.analyze}' ({source}) ═══")
+                    src_label = f" ({source})" if args.verbose else ""
+                    print(f"═══ Analysis of '{args.analyze}'{src_label} ═══")
                     for r in results:
                         print(f"  {r.lemma} [{r.pos}] — {r.description_en}")
             else:
@@ -191,7 +203,8 @@ def main() -> None:
             if generated:
                 for source, forms in generated.items():
                     tag_label = f" [{','.join(tags)}]" if tags else ""
-                    print(f"═══ Forms of '{args.generate}'{tag_label} ({source}) ═══")
+                    src_label = f" ({source})" if args.verbose else ""
+                    print(f"═══ Forms of '{args.generate}'{tag_label}{src_label} ═══")
                     seen = set()
                     for surface, inf in forms:
                         key = (surface, inf.display_name_en)

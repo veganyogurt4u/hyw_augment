@@ -260,6 +260,12 @@ Coverage check:
 Coverage with mismatch export:
 `hyw-augment --coverage --mismatches data/mismatches.tsv`
 
+Show which backend produced each result:
+`hyw-augment -v --analyze "բառ"`
+
+Print full engine summary (all backend stats, POS breakdowns):
+`hyw-augment --diagnostic --analyze "բառ"`
+
 Override config with explicit flags:
 `hyw-augment --nayiri data/*.json --apertium /path/to/apertium-hyw --analyze "բառ"`
 `hyw-augment --hyspell /path/to/Dictionaries --validate "բառ"`
