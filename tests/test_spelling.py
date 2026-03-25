@@ -1,13 +1,17 @@
-"""Tests for spelling.py — parse logic and pipe protocol, no hunspell binary needed.
+"""Tests for spelling.py — pipe protocol parsing and real hunspell integration.
 
-The pipe protocol tests use io.StringIO to fake the hunspell process's stdout.
-Setting _proc.poll.return_value = None makes _get_proc() believe the process
-is still alive and reuse it instead of trying to spawn a real hunspell.
+Unit tests (top half) use io.StringIO to fake the hunspell process's stdout,
+verifying the pipe protocol parser without needing a hunspell binary.
+
+Integration tests (bottom half) run real hunspell against the HySpell hy-c
+dictionary.  They are skipped when HySpell data is absent.
 """
 
 import io
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from hyw_augment.spelling import _SUGGEST_RE, SpellChecker
 
@@ -234,3 +238,55 @@ def test_suggest_batch_unavailable_returns_empty():
 def test_suggest_batch_empty_input_returns_empty():
     sc = _batch_spellchecker()
     assert sc.suggest_batch([]) == {}
+
+
+# ── Integration tests (real hunspell + hy-c dictionary) ──────────────────────
+# These exercise the full SpellChecker against the real HySpell hy-c dictionary.
+# Skipped when HySpell data is not configured.
+
+# Armenian test word: MART = "man/person"
+_MART = "\u0574\u0561\u0580\u0564"
+
+
+class TestSpellCheckerIntegration:
+    """Real hunspell integration — verifies actual spell-checking behavior."""
+
+    @pytest.fixture(autouse=True)
+    def _setup(self, spellcheck_dir):
+        """Build a real SpellChecker from the HySpell Dictc directory."""
+        self.sc = SpellChecker(spellcheck_dir)
+        assert self.sc.available, (
+            f"hunspell binary or hy-c dictionary not usable from {spellcheck_dir}"
+        )
+        yield
+        self.sc.close()
+
+    def test_valid_armenian_word(self):
+        """A common Armenian word should be accepted by hunspell."""
+        assert self.sc.check(_MART) is True
+
+    def test_invalid_nonsense(self):
+        """A nonsense ASCII string should be rejected."""
+        assert self.sc.check("xyznonexistent") is False
+
+    def test_suggest_returns_list(self):
+        """Suggestions for a nonsense word should be a (possibly empty) list."""
+        result = self.sc.suggest("xyznonexistent")
+        assert isinstance(result, list)
+
+    def test_check_and_suggest_valid(self):
+        """A valid word: check=True, suggestions=[]."""
+        valid, suggestions = self.sc.check_and_suggest(_MART)
+        assert valid is True
+        assert suggestions == []
+
+    def test_check_batch_mixed(self):
+        """Batch with one valid and one invalid word."""
+        results = self.sc.check_batch([_MART, "xyznonexistent"])
+        assert results[_MART] is True
+        assert results["xyznonexistent"] is False
+
+    def test_suggest_batch(self):
+        """Batch suggest returns a dict mapping words to suggestion lists."""
+        results = self.sc.suggest_batch(["xyznonexistent"])
+        assert isinstance(results["xyznonexistent"], list)
