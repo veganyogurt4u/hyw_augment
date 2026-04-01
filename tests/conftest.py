@@ -12,7 +12,6 @@ from pathlib import Path
 
 import pytest
 
-
 # ── Path helpers ──────────────────────────────────────────────────────────────
 
 def _find_config() -> Path | None:

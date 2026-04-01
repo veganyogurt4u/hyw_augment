@@ -401,11 +401,45 @@ class MorphEngine:
             return self.spellchecker.check(form)
         return False
 
-    def suggest(self, form: str) -> list[str]:
-        """Get spelling suggestions for an invalid word."""
-        if self.spellchecker is not None:
-            return self.spellchecker.suggest(form)
-        return []
+    def suggest(self, form: str, *, strict: bool = False) -> list[str]:
+        """Get spelling suggestions for an invalid word.
+
+        When *strict* is True, only suggestions that are recognized by a
+        morphological backend (Nayiri or Apertium) are returned.  When
+        False (default), raw Hunspell suggestions are returned first,
+        followed by backend-validated suggestions (with duplicates
+        removed and order preserved).
+        """
+        if self.spellchecker is None:
+            return []
+
+        raw = self.spellchecker.suggest(form)
+        if not raw:
+            return []
+
+        # Validate each suggestion against morphological backends.
+        validated: list[str] = []
+        for candidate in raw:
+            for name, backend in self.backends:
+                if name == "nayiri":
+                    if backend.is_valid_form(candidate):
+                        validated.append(candidate)
+                        break
+                elif name == "apertium":
+                    if backend.is_known(candidate):
+                        validated.append(candidate)
+                        break
+
+        if strict:
+            return validated
+
+        # Default: validated first, then remaining raw suggestions.
+        seen = set(validated)
+        for candidate in raw:
+            if candidate not in seen:
+                validated.append(candidate)
+                seen.add(candidate)
+        return validated
 
     def convert_reformed(self, text: str) -> str:
         """Convert Reformed-orthography text to Classical."""

@@ -89,6 +89,11 @@ def main() -> None:
         help="Get spelling suggestions for a word",
     )
     parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Only show suggestions confirmed by a morphological backend",
+    )
+    parser.add_argument(
         "--convert",
         help="Convert Reformed-orthography text to Classical",
     )
@@ -270,9 +275,10 @@ def main() -> None:
         # ── Suggest ─────────────────────────────────────────────────────
 
         if args.suggest:
-            suggestions = engine.suggest(args.suggest)
+            suggestions = engine.suggest(args.suggest, strict=args.strict)
             if suggestions:
-                print(f"Suggestions for '{args.suggest}': {', '.join(suggestions)}")
+                label = "Strict suggestions" if args.strict else "Suggestions"
+                print(f"{label} for '{args.suggest}': {', '.join(suggestions)}")
             else:
                 if engine.spellchecker is None:
                     print("Spell checker not available (hunspell not configured).")

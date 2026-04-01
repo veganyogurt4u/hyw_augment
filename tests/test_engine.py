@@ -17,9 +17,7 @@ from unittest.mock import MagicMock
 
 from hyw_augment.engine import AnalysisResult, MorphEngine
 from hyw_augment.nayiri import Lexicon
-
 from tests.test_nayiri import FIXTURE
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
