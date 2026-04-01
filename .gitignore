@@ -19,6 +19,8 @@ __pycache__/
 *.db
 # (currently) Derived from script
 data/extracted-words.json
+# notes on above
+cleanup-function-words.md
 
 # OS
 .DS_Store

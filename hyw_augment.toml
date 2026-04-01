@@ -10,7 +10,8 @@ paths = [
     #       --conllu data/*.conllu \
     #       --nayiri data/nayiri-armenian-lexicon-*.json \
     #       --output data/function-words.json
-    "data/function-words.json",
+    # Also not yet implemented properly so commented out rn
+    # "data/function-words.json",
 ]
 
 [apertium]
